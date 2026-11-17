@@ -38,7 +38,7 @@ Server Express + Socket.io, una pagina HTML con un campo di testo. Due schede de
 Aggiungi le stanze. Una schermata permette di scegliere un annuncio (finto) e un compratore, genera il `roomId` ed entra nella chat. Verifica che i messaggi non "escano" dalla stanza.
 
 ### Step 3: Database
-Crea le tabelle SQLite e salva i messaggi. Schema suggerito:
+Crea le tabelle SQL(postgresql e prisma) e salva i messaggi. Schema suggerito:
 
 ```
 messages(id, room_id, sender, type, content, created_at)
