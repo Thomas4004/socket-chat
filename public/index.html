@@ -2,21 +2,58 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
-  <title>Chat locale - Step 1</title>
+  <title>Chat locale - Step 2</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Chat locale (Step 1)</h1>
-  <p class="hint">Apri questa pagina in due schede: i messaggi arrivano a entrambe.</p>
+  <h1>Chat locale (Step 2 - rooms)</h1>
 
-  <!-- Qui verranno aggiunti i messaggi ricevuti -->
-  <div id="messages"></div>
+  <!-- ======================================================
+       SCHERMATA DI SELEZIONE
+       Scegliamo un annuncio (finto) e un compratore. Da questi
+       due valori costruiamo il roomId "chat_<annuncio>_<compratore>".
+       ====================================================== -->
+  <section id="lobby">
+    <p class="hint">
+      Scegli annuncio e compratore. Per testare due utenti, apri
+      due schede con la <strong>stessa coppia</strong> (stessa stanza)
+      oppure con coppie diverse (stanze separate).
+    </p>
 
-  <!-- Form di invio: premendo Invio scatta l'evento "submit" -->
-  <form id="form">
-    <input id="input" type="text" placeholder="Scrivi un messaggio..." autocomplete="off" />
-    <button type="submit">Invia</button>
-  </form>
+    <label>
+      Annuncio:
+      <select id="listing">
+        <option value="1">1 - Bici usata</option>
+        <option value="2">2 - Libro di analisi</option>
+        <option value="3">3 - Ripetizioni di fisica</option>
+      </select>
+    </label>
+
+    <label>
+      Compratore:
+      <select id="buyer">
+        <option value="10">10 - Marco</option>
+        <option value="11">11 - Giulia</option>
+        <option value="12">12 - Luca</option>
+      </select>
+    </label>
+
+    <button id="enter">Entra nella chat</button>
+  </section>
+
+  <!-- ======================================================
+       CHAT (nascosta finché non si entra nella stanza)
+       ====================================================== -->
+  <section id="chat" hidden>
+    <p class="hint">Stanza: <code id="room-label"></code></p>
+
+    <div id="messages"></div>
+
+    <form id="form">
+      <input id="input" type="text" placeholder="Scrivi un messaggio..." autocomplete="off" />
+      <button type="submit">Invia</button>
+    </form>
+  </section>
 
   <!-- Il client di Socket.io viene servito automaticamente da
        Socket.io stesso su /socket.io/socket.io.js: non dobbiamo

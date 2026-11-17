@@ -1,8 +1,9 @@
 // ============================================================
-// STEP 1 - Chat minimale con Socket.io
+// STEP 2 - Chat con stanze (rooms)
 // ------------------------------------------------------------
-// Obiettivo: due schede del browser aperte devono scambiarsi
-// messaggi in tempo reale. Niente database, niente stanze.
+// Obiettivo: i messaggi arrivano SOLO a chi è nella stessa
+// stanza. Concetti nuovi: socket.join(roomId) e
+// io.to(roomId).emit(...).
 // ============================================================
 
 const express = require("express");
@@ -29,17 +30,46 @@ const io = new Server(server);
 io.on("connection", (socket) => {
   console.log("Nuovo client connesso:", socket.id);
 
-  // Ascoltiamo l'evento "send_message" inviato dal client.
-  // Il nome dell'evento è arbitrario: deve solo combaciare
-  // tra client (emit) e server (on).
-  socket.on("send_message", (data) => {
-    console.log("Messaggio ricevuto:", data);
+  // ----------------------------------------------------------
+  // ENTRARE IN UNA STANZA
+  // ----------------------------------------------------------
+  // Il client emette "join_room" con il roomId scelto.
+  // "socket.join(roomId)" aggiunge QUESTO socket alla stanza.
+  // Da quel momento, ogni io.to(roomId).emit(...) raggiungerà
+  // anche lui. Un socket può stare in più stanze contemporaneamente.
+  socket.on("join_room", (roomId) => {
+    // Validazione minima: il roomId deve rispettare il formato
+    // concordato "chat_<idAnnuncio>_<idCompratore>". Non è
+    // sicurezza vera (arriverà con l'auth), ma evita errori
+    // banali tipo stringhe vuote.
+    if (typeof roomId !== "string" || !/^chat_\d+_\d+$/.test(roomId)) {
+      socket.emit("error_message", "roomId non valido");
+      return;
+    }
 
-    // "io.emit" manda l'evento a TUTTI i client connessi,
-    // incluso chi ha inviato il messaggio. In Step 2 lo
-    // sostituiremo con io.to(roomId).emit(...) per limitarlo
-    // alla stanza giusta.
-    io.emit("new_message", data);
+    socket.join(roomId);
+    console.log(`Socket ${socket.id} è entrato nella stanza ${roomId}`);
+
+    // Confermiamo al client che è entrato: utile per mostrare
+    // la chat solo dopo il join.
+    socket.emit("room_joined", roomId);
+  });
+
+  // ----------------------------------------------------------
+  // INVIARE UN MESSAGGIO IN UNA STANZA
+  // ----------------------------------------------------------
+  // Il client manda { roomId, text }. Il server NON usa io.emit
+  // (che andrebbe a tutti), ma io.to(roomId).emit: solo chi è
+  // in quella stanza riceve il messaggio.
+  socket.on("send_message", (data) => {
+    const { roomId, text } = data || {};
+    if (!roomId || !text) return;
+
+    console.log(`Messaggio in ${roomId}:`, text);
+
+    // In Step 3 salveremo qui il messaggio nel database PRIMA
+    // di inoltrarlo. Per ora lo inoltriamo e basta.
+    io.to(roomId).emit("new_message", { roomId, text });
   });
 
   // Quando il client si disconnette (chiude la scheda, perde
