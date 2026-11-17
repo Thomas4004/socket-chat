@@ -1,0 +1,32 @@
+// ============================================================
+// STEP 3 - Schema Prisma per la chat
+// ------------------------------------------------------------
+// Una sola tabella: "messages". Ogni riga è un messaggio
+// persistito. Il campo "type" distingue testo da media
+// (image/video/audio), "content" contiene il testo oppure
+// l'URL del media.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  roomId    String   @map("room_id")
+  sender    String
+  type      String   @default("text") // "text" | "image" | "video" | "audio"
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Indice per velocizzare il caricamento dello storico di una
+  // stanza: la query tipica è "tutti i messaggi di roomId X
+  // ordinati per data".
+  @@index([roomId, createdAt])
+  @@map("messages")
+}

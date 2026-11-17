@@ -44,13 +44,24 @@ enterBtn.addEventListener("click", () => {
 
 // Il server ci conferma che siamo entrati: ora possiamo
 // mostrare la chat e nascondere la lobby.
-socket.on("room_joined", (roomId) => {
+socket.on("room_joined", async (roomId) => {
   currentRoom = roomId;
   roomLabel.textContent = roomId;
   lobby.hidden = true;
   chat.hidden = false;
   messages.innerHTML = ""; // puliamo eventuali messaggi vecchi
   input.focus();
+
+  // Carichiamo lo STORICO via HTTP normale (non socket).
+  // I messaggi nuovi arriveranno poi con "new_message".
+  try {
+    const res = await fetch(`/api/messages/${roomId}`);
+    if (!res.ok) throw new Error("Errore HTTP " + res.status);
+    const history = await res.json();
+    history.forEach(renderMessage);
+  } catch (err) {
+    console.error("Errore caricamento storico:", err);
+  }
 });
 
 // Se il server rifiuta il roomId (es. formato sbagliato)
@@ -79,10 +90,20 @@ form.addEventListener("submit", (e) => {
 // ------------------------------------------------------------
 // Arrivano solo i messaggi della stanza in cui siamo: il
 // server usa io.to(roomId).emit(...), non io.emit(...).
-socket.on("new_message", (data) => {
+// Il payload ora è l'oggetto salvato nel DB:
+// { id, roomId, sender, type, content, createdAt }.
+socket.on("new_message", renderMessage);
+
+// Funzione condivisa per mostrare un messaggio (usata sia per
+// lo storico che per i nuovi in tempo reale).
+function renderMessage(msg) {
   const div = document.createElement("div");
   div.className = "message";
-  div.textContent = data.text;
+
+  // Per ora mostriamo solo testo. In Step 5 gestiremo image/
+  // video/audio in base a msg.type.
+  div.textContent = `${msg.sender}: ${msg.content}`;
+
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
-});
+}

@@ -1,20 +1,49 @@
 // ============================================================
-// STEP 2 - Chat con stanze (rooms)
+// STEP 3 - Chat con stanze + persistenza su PostgreSQL
 // ------------------------------------------------------------
-// Obiettivo: i messaggi arrivano SOLO a chi è nella stessa
-// stanza. Concetti nuovi: socket.join(roomId) e
-// io.to(roomId).emit(...).
+// Concetto nuovo: i socket sono solo il "tubo" real-time.
+// Ogni messaggio viene PRIMA salvato nel DB, POI inoltrato
+// alla stanza. Lo storico si carica via HTTP normale.
 // ============================================================
 
 const express = require("express");
 const http = require("http");
 const path = require("path");
 const { Server } = require("socket.io");
+const prisma = require("./db");
 
-// Creiamo l'app Express: serve solo a servire i file statici
-// (HTML, CSS, JS) dalla cartella "public".
+// Creiamo l'app Express: serve i file statici (HTML, CSS, JS)
+// dalla cartella "public" e le API HTTP (storico messaggi).
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
+
+// ------------------------------------------------------------
+// API HTTP: storico messaggi di una stanza
+// ------------------------------------------------------------
+// Il client chiama GET /api/messages/chat_1_10 quando entra
+// nella stanza, per mostrare i messaggi precedenti. I nuovi
+// arriveranno poi via socket.
+app.get("/api/messages/:roomId", async (req, res) => {
+  const { roomId } = req.params;
+
+  // Stessa validazione del socket: evitiamo query con input
+  // arbitrario.
+  if (!/^chat_\d+_\d+$/.test(roomId)) {
+    return res.status(400).json({ error: "roomId non valido" });
+  }
+
+  try {
+    // Ordiniamo per data crescente: i più vecchi in cima.
+    const messages = await prisma.message.findMany({
+      where: { roomId },
+      orderBy: { createdAt: "asc" },
+    });
+    res.json(messages);
+  } catch (err) {
+    console.error("Errore caricamento storico:", err);
+    res.status(500).json({ error: "errore interno" });
+  }
+});
 
 // Socket.io NON è un server HTTP a sé: ha bisogno di un server
 // HTTP a cui agganciarsi. Per questo creiamo un server HTTP
@@ -61,15 +90,35 @@ io.on("connection", (socket) => {
   // Il client manda { roomId, text }. Il server NON usa io.emit
   // (che andrebbe a tutti), ma io.to(roomId).emit: solo chi è
   // in quella stanza riceve il messaggio.
-  socket.on("send_message", (data) => {
+  socket.on("send_message", async (data) => {
     const { roomId, text } = data || {};
     if (!roomId || !text) return;
 
-    console.log(`Messaggio in ${roomId}:`, text);
+    // Validazione del roomId anche qui: non ci fidiamo del client.
+    if (!/^chat_\d+_\d+$/.test(roomId)) return;
 
-    // In Step 3 salveremo qui il messaggio nel database PRIMA
-    // di inoltrarlo. Per ora lo inoltriamo e basta.
-    io.to(roomId).emit("new_message", { roomId, text });
+    try {
+      // 1) SALVIAMO PRIMA nel database. Se il salvataggio
+      //    fallisce, non inoltriamo nulla: meglio perdere un
+      //    messaggio in tempo reale che averlo "fantasma" in
+      //    una scheda e non nel DB.
+      //    In Step 4 sostituiremo "anonimo" con socket.data.user.
+      const saved = await prisma.message.create({
+        data: {
+          roomId,
+          sender: "anonimo",
+          type: "text",
+          content: text,
+        },
+      });
+
+      // 2) POI inoltriamo alla stanza. Usiamo l'oggetto salvato
+      //    così il client riceve anche id e createdAt.
+      io.to(roomId).emit("new_message", saved);
+    } catch (err) {
+      console.error("Errore salvataggio messaggio:", err);
+      socket.emit("error_message", "Impossibile inviare il messaggio");
+    }
   });
 
   // Quando il client si disconnette (chiude la scheda, perde
