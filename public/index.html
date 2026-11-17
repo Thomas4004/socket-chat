@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chat locale - Step 1</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Chat locale (Step 1)</h1>
+  <p class="hint">Apri questa pagina in due schede: i messaggi arrivano a entrambe.</p>
+
+  <!-- Qui verranno aggiunti i messaggi ricevuti -->
+  <div id="messages"></div>
+
+  <!-- Form di invio: premendo Invio scatta l'evento "submit" -->
+  <form id="form">
+    <input id="input" type="text" placeholder="Scrivi un messaggio..." autocomplete="off" />
+    <button type="submit">Invia</button>
+  </form>
+
+  <!-- Il client di Socket.io viene servito automaticamente da
+       Socket.io stesso su /socket.io/socket.io.js: non dobbiamo
+       installarlo con npm né copiarlo a mano. -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
